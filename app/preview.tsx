@@ -11,6 +11,8 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as ImageManipulator from "expo-image-manipulator";
+import { Video, ResizeMode } from "expo-av";
+
 
 export default function PreviewScreen() {
   const { uri } = useLocalSearchParams<{ uri: string }>();
@@ -32,7 +34,7 @@ export default function PreviewScreen() {
       const isVideo = fileType === "mp4" || fileType === "mov";
       let uploadUri = uri;
 
-      // Nếu là ảnh, nén và resize trước khi upload
+      // Nén và resize ảnh
       if (!isVideo) {
         const manipulated = await ImageManipulator.manipulateAsync(
           uri,
@@ -50,27 +52,42 @@ export default function PreviewScreen() {
       } as any);
       formData.append("upload_preset", UPLOAD_PRESET);
 
+      // Upload đúng endpoint
       const res = await axios.post(
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/auto/upload`,
+        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${isVideo ? "video" : "image"}/upload`,
         formData,
         { headers: { "Content-Type": "multipart/form-data" } }
       );
 
       Alert.alert("Thành công", "File đã được tải lên Cloudinary!");
-
       router.back();
     } catch (error: any) {
-      console.error("Upload lỗi:", error.response?.data || error.message);
       Alert.alert("Lỗi upload", "Không thể tải lên Cloudinary!");
     } finally {
       setLoading(false);
     }
   };
 
+  const fileType = uri?.split(".").pop()?.toLowerCase();
+  const isVideo = fileType === "mp4" || fileType === "mov";
+
   return (
     <View style={styles.container}>
-      <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+      {isVideo ? (
+        <Video
+          source={{ uri }}
+          style={styles.image}
+          useNativeControls
+          resizeMode={ResizeMode.CONTAIN}  
+          shouldPlay
+        />
+
+      ) : (
+        <Image source={{ uri }} style={styles.image} resizeMode="contain" />
+      )}
+
       {loading && <ActivityIndicator color="#00ffcc" style={{ marginVertical: 20 }} />}
+
       <View style={styles.buttons}>
         <TouchableOpacity
           style={[styles.button, { backgroundColor: "#d54731" }]}
